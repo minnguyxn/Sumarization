@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Summarization</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            background-color: #fff;
+            padding: 40px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 15px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            resize: none;
+            box-sizing: border-box;
+        }
+        .char-counter {
+            text-align: right;
+            font-size: 14px;
+            color: #888;
+        }
+        .mode-selection {
+            margin: 20px 0;
+        }
+        .mode-selection label {
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        select {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #output {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f4f4f4;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            min-height: 100px;
+            font-size: 16px;
+        }
+        #loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Summarize Your Text</h1>
+
+
+        <textarea id="inputText" placeholder="Paste your text here..."></textarea>
+        <div class="char-counter" id="charCounter">0 / 1000 characters</div>
+
+
+        <input type="file" id="fileInput" accept=".pdf,.doc,.docx" />
+
+
+        <div class="mode-selection">
+            <label for="summarizeMode">Summarization Length:</label>
+            <select id="summarizeMode">
+                <option value="short">Short</option>
+                <option value="medium">Medium</option>
+                <option value="long">Long</option>
+            </select>
+        </div>
+
+
+        <button onclick="summarizeText()">Summarize</button>
+
+
+        <div id="output"></div>
+
+
+        <div id="loading">
+            <img src="https://i.imgur.com/llF5iyg.gif" alt="Loading" width="50">
+            <p>Summarizing...</p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    <script>
+        const inputText = document.getElementById('inputText');
+        const charCounter = document.getElementById('charCounter');
+        const output = document.getElementById('output');
+        const loading = document.getElementById('loading');
+
+
+        inputText.addEventListener('input', function() {
+            charCounter.textContent = `${inputText.value.length} / 1000 characters`;
+        });
+
+
+        document.getElementById('fileInput').addEventListener('change', async function() {
+            const file = this.files[0];
+
+            if (!file) {
+                alert("Please select a file to upload.");
+                return;
+            }
+
+            const reader = new FileReader();
+
+            if (file.type === "application/pdf") {
+                reader.onload = async function() {
+                    const typedarray = new Uint8Array(this.result);
+                    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                    let text = '';
+
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const content = await page.getTextContent();
+                        const textItems = content.items.map(item => item.str);
+                        text += textItems.join(' ') + ' ';
+                    }
+
+                    inputText.value = text;
+                    charCounter.textContent = `${inputText.value.length} / 1000 characters`;
+                };
+
+                reader.readAsArrayBuffer(file);
+            } else if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || 
+                       file.type === "application/msword") {
+                reader.onload = function() {
+                    const text = reader.result;
+                    inputText.value = text; 
+                    charCounter.textContent = `${inputText.value.length} / 1000 characters`;
+                };
+
+                reader.readAsText(file);
+            } else {
+                alert("Unsupported file type. Please upload a PDF or Word document.");
+            }
+        });
+
+
+        function summarizeText() {
+
+            const text = inputText.value;
+            const mode = document.getElementById("summarizeMode").value;
+
+
+            if (!text.trim()) {
+                alert("Please enter text to summarize.");
+                return;
+            }
+
+            if (text.length > 5000) {
+                alert("Text exceeds the 5000 character limit.");
+                return;
+            }
+
+
+            output.innerHTML = '';
+            loading.style.display = 'block';
+
+
+            const data = { text: text, mode: mode };
+
+
+            fetch('http://127.0.0.1:5000/summarize', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+
+                loading.style.display = 'none';
+                output.innerHTML = `<strong>Summary:</strong><br>${data.summary}`;
+            })
+            .catch(error => {
+
+                loading.style.display = 'none';
+                output.innerHTML = "There was an error summarizing the text.";
+                console.error("Error:", error);
+            });
+        }
+    </script>
+
+</body>
+</html>

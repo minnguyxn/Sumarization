@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Data Viewer</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; }
+        .container { margin-bottom: 20px; }
+        .button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h2>JSON Data Viewer</h2>
+    <div class="container">
+        <h3 id="title">Title: </h3>
+        <p id="text">Text: </p>
+        <p id="summarize">Summarize: </p>
+    </div>
+    <button class="button" onclick="nextSample()">Next</button>
+
+    <script>
+        let data = [];
+        let currentIndex = 0;
+
+        // Load JSON data
+        fetch('summarized_data (2).json')
+            .then(response => response.json())
+            .then(jsonData => {
+                data = jsonData;
+                displaySample();
+            })
+            .catch(error => console.error('Error loading JSON:', error));
+
+        // Display the current sample
+        function displaySample() {
+            if (data.length > 0) {
+                document.getElementById("title").textContent = "Title: " + data[currentIndex].title;
+                document.getElementById("text").textContent = "Text: " + data[currentIndex].text;
+                document.getElementById("summarize").textContent = "Summarize: " + data[currentIndex].summarize;
+            }
+        }
+
+        // Show next sample
+        function nextSample() {
+            currentIndex = (currentIndex + 1) % data.length; // Cycle through samples
+            displaySample();
+        }
+    </script>
+
+</body>
+</html>
